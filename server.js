@@ -38,7 +38,46 @@ dispatcher.onPost('/ooc', function(req, res) {
   }));
 });
 
+dispatcher.onPost('/setdesc', function(req, res) {
+  res.writeHead(200, {'Content-Type': 'text/json'});
+  datastore.setWorld(req.params.team_domain);
+  var send = function(text) {
+    res.end(JSON.stringify({
+      response_type: 'ephemeral',
+      text: text
+    }));
+  };
+
+  var currentUser = req.params.user_name;
+
+  datastore.updateUser(currentUser, 'desc', req.params.text).then(function(){
+    send('Description set.');
+  });
+});
+
+dispatcher.onPost('/look', function(req, res) {
+  res.writeHead(200, {'Content-Type': 'text/json'});
+  datastore.setWorld(req.params.team_domain);
+  var send = function(text) {
+    res.end(JSON.stringify({
+      response_type: 'ephemeral',
+      text: text
+    }));
+  };
+
+  datastore.getUser(req.params.text).then(function(userProps){
+    if(_.isEmpty(userProps)) {
+      send('No desc found for ' + req.params.text);
+    } else {
+      send(userProps.desc);
+    }
+  });
+});
+
 dispatcher.onPost('/info', function(req, res) {
+  res.writeHead(200, {'Content-Type': 'text/json'});
+  datastore.setWorld(req.params.team_domain);
+
   var infoProps = {
     species: 'Phenotypic representation',
     gender: 'Whatever you say it is',
@@ -49,13 +88,10 @@ dispatcher.onPost('/info', function(req, res) {
   var textReq = req.params.text;
   var currentUser = req.params.user_name;
 
-  datastore.setWorld(req.params.team_domain);
-
   var tokens = textReq.split(' ');
   console.log('Command: info, arguments: ' + textReq);
 
   var command = tokens[0];
-  res.writeHead(200, {'Content-Type': 'text/json'});
 
   // Closure to send resposne
   var send = function(text) {
@@ -111,7 +147,7 @@ dispatcher.onPost('/info', function(req, res) {
           });
         }
         else {
-          textResponse = 'No info found for `@' + username + '`';
+          textResponse = 'No info found for ' + username;
         }
 
         send(textResponse);

@@ -10,9 +10,12 @@
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
-  "author": "",
-  "license": "ISC"
+  "author": "Morgan Nichols <morgan@latrani.net>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/latrani/pfworlds-commands.git"
+  },
+  "license": "MIT"
 }

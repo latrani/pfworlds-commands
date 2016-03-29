@@ -8,53 +8,7 @@ var _ = require('underscore');
 var http = require('http');
 var dispatcher = require('httpdispatcher');
 
-// Redis setup
-var redis = require('redis');
-var bluebird = require('bluebird');
-bluebird.promisifyAll(redis.RedisClient.prototype);
-bluebird.promisifyAll(redis.Multi.prototype);
-var redisClient = redis.createClient();
-
-var redisInterface = function(client) {
-  this.client = client;
-};
-
-redisInterface.prototype = {
-  setWorld: function(world) {
-    this.world = world;
-  },
-
-  getUserKey: function(theUsername) {
-    var username = theUsername.toLowerCase();
-    if (username[0] !== '@') {
-      username = '@' + username;
-    }
-    return this.world + ':' + username;
-  },
-
-  getUser: function(username) {
-    return this.client.getAsync(this.getUserKey(username)).then(function(response){
-      if (response) {
-        return JSON.parse(response);
-      } else {
-        return {};
-      }
-    });
-  },
-
-  setUser: function(username, properties) {
-    var textData = JSON.stringify(properties);
-    return this.client.setAsync(this.getUserKey(username), textData);
-  },
-
-  updateUser: function(username, key, value) {
-    var _this = this;
-    return this.getUser(username).then(function(userProps) {
-      userProps[key] = value;
-      return _this.setUser(username, userProps);
-    });
-  }
-};
+var datastore = require('./redis-store.js');
 
 //Lets define a port we want to listen to
 var PORT = 8080;
@@ -66,8 +20,6 @@ function handleRequest(request, response){
     console.log(err);
   }
 }
-
-var datastore = new redisInterface(redisClient);
 
 //Create a server
 var server = http.createServer(handleRequest);
@@ -151,7 +103,7 @@ dispatcher.onPost('/info', function(req, res) {
       var username = command.toLowerCase(); // Strip leading at sign if it's there.
       datastore.getUser(username).then(function(response) {
         var textResponse;
-        if (response) {
+        if (!_.isEmpty(response)) {
           textResponse = '#### Datasphere record for `@' + username + '`:\n';
           _.each(infoProps, function(value, key) {
             var userValue = response[key] || '(unset)';

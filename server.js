@@ -58,6 +58,7 @@ dispatcher.onPost('/setdesc', function(req, res) {
 dispatcher.onPost('/look', function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/json'});
   datastore.setWorld(req.params.team_domain);
+
   var send = function(text) {
     res.end(JSON.stringify({
       response_type: 'ephemeral',
@@ -139,6 +140,7 @@ dispatcher.onPost('/info', function(req, res) {
       var username = command.toLowerCase(); // Strip leading at sign if it's there.
       datastore.getUser(username).then(function(response) {
         var textResponse;
+        response = _.pick(response, _.keys(infoProps));
         if (!_.isEmpty(response)) {
           textResponse = '#### Datasphere record for `@' + username + '`:\n';
           _.each(infoProps, function(value, key) {

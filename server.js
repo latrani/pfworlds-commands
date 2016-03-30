@@ -13,13 +13,13 @@ var datastore = require('./redis-store.js');
 //Lets define a port we want to listen to
 var PORT = 8080;
 
-function handleRequest(request, response){
+var handleRequest = function(request, response){
   try {
     dispatcher.dispatch(request, response);
   } catch(err) {
     console.log(err);
   }
-}
+};
 
 //Create a server
 var server = http.createServer(handleRequest);

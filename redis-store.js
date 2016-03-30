@@ -7,7 +7,7 @@ bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);
 
 var createRedisMethods = function(client, keyFunc) {
-  var methods = {}
+  var methods = {};
   methods.get = function(objKey) {
     return client.getAsync(keyFunc(objKey)).then(function(response){
       if (response) {
@@ -16,20 +16,22 @@ var createRedisMethods = function(client, keyFunc) {
         return {};
       }
     });
-  },
+  };
+
   methods.set = function(objKey, properties) {
     var textData = JSON.stringify(properties);
     return client.setAsync(keyFunc(objKey), textData);
-  }
+  };
+
   methods.update = function(objKey, key, value) {
     return methods.get(objKey).then(function(objProps) {
       objProps[key] = value;
       return methods.set(objKey, objProps);
     });
-  }
+  };
 
   return methods;
-}
+};
 
 var redisInterface = function() {
   this.client = redis.createClient();

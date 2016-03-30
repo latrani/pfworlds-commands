@@ -50,14 +50,33 @@ dispatcher.onPost('/setdesc', function(req, res) {
 
   var currentUser = req.params.user_name;
 
-  datastore.updateUser(currentUser, 'desc', req.params.text).then(function(){
+  datastore.user.update(currentUser, 'desc', req.params.text).then(function(){
     send('Description set.');
+  });
+});
+
+dispatcher.onPost('/setroomdesc', function(req, res) {
+  res.writeHead(200, {'Content-Type': 'text/json'});
+  datastore.setWorld(req.params.team_domain);
+  var send = function(text) {
+    res.end(JSON.stringify({
+      response_type: 'ephemeral',
+      text: text
+    }));
+  };
+
+  var currentUser = req.params.user_name;
+
+  datastore.channel.update(req.params.channel_id, 'desc', req.params.text).then(function(){
+    send('Channel description set.');
   });
 });
 
 dispatcher.onPost('/look', function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/json'});
   datastore.setWorld(req.params.team_domain);
+
+  console.log(req.params);
 
   var send = function(text) {
     res.end(JSON.stringify({
@@ -66,8 +85,18 @@ dispatcher.onPost('/look', function(req, res) {
     }));
   };
 
-  datastore.getUser(req.params.text).then(function(userProps){
-    if(_.isEmpty(userProps)) {
+  if (_.isEmpty(req.params.text)) {
+    datastore.channel.get(req.params.channel_id).then(function(channelProps){
+      if(_.isEmpty(channelProps) || !channelProps.desc) {
+        send('No desc found for this room');
+      } else {
+        send(channelProps.desc);
+      }
+    });
+  }
+
+  datastore.user.get(req.params.text).then(function(userProps){
+    if(_.isEmpty(userProps) || !userProps.desc) {
       send('No desc found for ' + req.params.text);
     } else {
       send(userProps.desc);
@@ -90,7 +119,6 @@ dispatcher.onPost('/info', function(req, res) {
   var currentUser = req.params.user_name;
 
   var tokens = textReq.split(' ');
-  console.log('Command: info, arguments: ' + textReq);
 
   var command = tokens[0];
 
@@ -128,7 +156,7 @@ dispatcher.onPost('/info', function(req, res) {
       var value = tokens.slice(2).join(' ');
 
       if (_.has(infoProps, key)) {
-        datastore.updateUser(currentUser, key, value).then(function(){
+        datastore.user.update(currentUser, key, value).then(function(){
           send('`' + key + '` has been set to `' + value + '`');
         });
       } else {
@@ -138,7 +166,7 @@ dispatcher.onPost('/info', function(req, res) {
     default:
       // Fetch user info
       var username = command.toLowerCase(); // Strip leading at sign if it's there.
-      datastore.getUser(username).then(function(response) {
+      datastore.user.get(username).then(function(response) {
         var textResponse;
         response = _.pick(response, _.keys(infoProps));
         if (!_.isEmpty(response)) {

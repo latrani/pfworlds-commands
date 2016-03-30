@@ -76,8 +76,6 @@ dispatcher.onPost('/look', function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/json'});
   datastore.setWorld(req.params.team_domain);
 
-  console.log(req.params);
-
   var send = function(text) {
     res.end(JSON.stringify({
       response_type: 'ephemeral',
@@ -156,7 +154,7 @@ dispatcher.onPost('/info', function(req, res) {
       var value = tokens.slice(2).join(' ');
 
       if (_.has(infoProps, key)) {
-        datastore.user.update(currentUser, key, value).then(function(){
+        datastore.user.update(currentUser, key, value).then(function(response){
           send('`' + key + '` has been set to `' + value + '`');
         });
       } else {
@@ -170,14 +168,14 @@ dispatcher.onPost('/info', function(req, res) {
         var textResponse;
         response = _.pick(response, _.keys(infoProps));
         if (!_.isEmpty(response)) {
-          textResponse = '#### Datasphere record for `@' + username + '`:\n';
+          textResponse = '#### Datasphere record for `' + username + '`:\n';
           _.each(infoProps, function(value, key) {
             var userValue = response[key] || '(unset)';
             textResponse += '* *' + capitalize(key) + '*: ' + userValue + '\n';
           });
         }
         else {
-          textResponse = 'No info found for ' + username;
+          textResponse = 'No info found for `' + username + '`\n';
         }
 
         send(textResponse);

@@ -183,4 +183,4 @@ dispatcher.onPost('/info', function(req, res) {
   }
 });
 
-module.exports = handleRequest
+module.exports = handleRequest;

@@ -8,179 +8,156 @@ var _ = require('underscore');
 var http = require('http');
 var dispatcher = require('httpdispatcher');
 
-var datastore = require('./redis-store.js');
+var express = require('express');
+var bodyParser = require('body-parser');
 
-//Lets define a port we want to listen to
-var PORT = 8080;
-
-var handleRequest = function(request, response){
-  try {
-    dispatcher.dispatch(request, response);
-  } catch(err) {
-    console.log(err);
-  }
+const INFO_PROPS = {
+  species: 'Phenotypic representation',
+  gender: 'Whatever you say it is',
 };
 
-//Create a server
-var server = http.createServer(handleRequest);
+var app = express();
+app.use(bodyParser.urlencoded({ extended: true }));
 
-//Lets start our server
-server.listen(PORT, function(){
-  //Callback triggered when server is successfully listening. Hurray!
-  console.log('Server listening on: http://localhost:%s', PORT);
-});
+var datastore = require('./redis-store.js');
 
-dispatcher.onPost('/ooc', function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/json'});
-  res.end(JSON.stringify({
+app.post('/ooc', (req, res) => {
+  res.json({
     response_type: 'in_channel',
-    text: '*[OOC]* ' + req.params.text
-  }));
-});
-
-dispatcher.onPost('/setdesc', function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/json'});
-  datastore.setWorld(req.params.team_domain);
-  var send = function(text) {
-    res.end(JSON.stringify({
-      response_type: 'ephemeral',
-      text: text
-    }));
-  };
-
-  var currentUser = req.params.user_name;
-
-  datastore.user.update(currentUser, 'desc', req.params.text).then(function(){
-    send('Description set.');
+    text: '*[OOC]* ' + req.body.text
   });
 });
 
-dispatcher.onPost('/setroomdesc', function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/json'});
-  datastore.setWorld(req.params.team_domain);
-  var send = function(text) {
-    res.end(JSON.stringify({
-      response_type: 'ephemeral',
-      text: text
-    }));
-  };
+app.post('/look', (req, res) => {
+  datastore.setWorld(req.body.team_domain);
 
-  var currentUser = req.params.user_name;
+  let result;
 
-  datastore.channel.update(req.params.channel_id, 'desc', req.params.text).then(function(){
-    send('Channel description set.');
-  });
-});
-
-dispatcher.onPost('/look', function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/json'});
-  datastore.setWorld(req.params.team_domain);
-
-  var send = function(text) {
-    res.end(JSON.stringify({
-      response_type: 'ephemeral',
-      text: text
-    }));
-  };
-
-  if (_.isEmpty(req.params.text)) {
-    datastore.channel.get(req.params.channel_id).then(function(channelProps){
+  if (_.isEmpty(req.body.text)) {
+    result = datastore.channel.get(req.body.channel_id)
+    .then(function(channelProps){
       if(_.isEmpty(channelProps) || !channelProps.desc) {
-        send('No desc found for this room');
+        return 'No desc found for this room';
       } else {
-        send(channelProps.desc);
+        return channelProps.desc;
+      }
+    });
+  } else {
+    result = datastore.user.get(req.body.text)
+    .then(function(userProps){
+      if(_.isEmpty(userProps) || !userProps.desc) {
+        return 'No desc found for ' + req.body.text;
+      } else {
+        return userProps.desc;
       }
     });
   }
 
-  datastore.user.get(req.params.text).then(function(userProps){
-    if(_.isEmpty(userProps) || !userProps.desc) {
-      send('No desc found for ' + req.params.text);
-    } else {
-      send(userProps.desc);
-    }
+  result.then((text) => {
+    res.json({
+      response_type: 'ephemeral',
+      text: text
+    });
+  });
+
+});
+
+app.post('/setdesc', (req, res) => {
+  datastore.setWorld(req.body.team_domain);
+
+  datastore.user.update(req.body.user_name, 'desc', req.body.text).then(function(){
+    res.json({
+      response_type: 'ephemeral',
+      text: 'Description set.'
+    });
   });
 });
 
-dispatcher.onPost('/info', function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/json'});
-  datastore.setWorld(req.params.team_domain);
+app.post('/setroomdesc', (req, res) => {
+  datastore.setWorld(req.body.team_domain);
 
-  var infoProps = {
-    species: 'Phenotypic representation',
-    gender: 'Whatever you say it is',
-    // desc: 'What do you look like?',
-    // prefs: 'What are you into?'
-  };
-
-  var textReq = req.params.text;
-  var currentUser = req.params.user_name;
-
-  var tokens = textReq.split(' ');
-
-  var command = tokens[0];
-
-  // Closure to send resposne
-  var send = function(text) {
-    res.end(JSON.stringify({
+  datastore.channel.update(req.body.channel_id, 'desc', req.body.text).then(function(){
+    res.json({
       response_type: 'ephemeral',
-      text: text
-    }));
-  };
+      text: 'Channel description set.'
+    });
+  });
+});
+
+app.post('/info', (req, res) => {
+  datastore.setWorld(req.body.team_domain);
+
+  let result = Promise.resolve();
+  const tokens = req.body.text.split(' ');
+  const currentUser = req.body.user_name;
+  const command = _.first(tokens).toLowerCase();
+  const args = _.rest(tokens);
 
   switch (command) {
-    case 'list':
-      var textResponse = '#### Avaliable datasphere info fields:\n';
-
-      _.each(infoProps, function(value, key) {
-        textResponse += '* *' + capitalize(key) + '*: ' + value + '\n';
-      });
-
-      textResponse += '\nUse `/info set [field] [value]` to set yours!\n';
-      textResponse += 'All fields may be formatted using [Markdown](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)\n';
-      send(textResponse);
-      break;
-    case '':
+    case '': //Falls through
     case 'help':
-      textResponse = '#### Datasphere Help\n' +
+      result = Promise.resolve('#### Datasphere Help\n' +
       '* `[@username]`: Show info for someone, by @username (Tab-completion works here!)\n' +
       '* `list`: List available fields\n' +
       '* `set [field] [value]`: Set a field on yourself\n' +
-      '* `help`: This message\n';
-      send(textResponse);
+      '* `help`: This message\n');
+      break;
+    case 'list':
+      let text = '#### Avaliable datasphere info fields:\n';
+
+      _.each(INFO_PROPS, function(value, key) {
+        text += '* *' + capitalize(key) + '*: ' + value + '\n';
+      });
+
+      text += '\nUse `/info set [field] [value]` to set yours!\n';
+      text += 'All fields may be formatted using [Markdown](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)\n';
+
+      result = Promise.resolve(text);
       break;
     case 'set':
-      var key = tokens[1].toLowerCase();
-      var value = tokens.slice(2).join(' ');
+      var key = _.first(args).toLowerCase();
+      var value = _.rest(args).join(' ');
 
-      if (_.has(infoProps, key)) {
-        datastore.user.update(currentUser, key, value).then(function(response){
-          send('`' + key + '` has been set to `' + value + '`');
+      if (_.has(INFO_PROPS, key)) {
+        result =  datastore.user.update(currentUser, key, value).then(function(response){
+          return '`' + key + '` has been set to `' + value + '`';
         });
       } else {
-        send('`' + key + '` is not a recognized property!');
+        result = Promise.resolve('`' + key + '` is not a recognized property!');
       }
       break;
-    default:
-      // Fetch user info
-      var username = command.toLowerCase(); // Strip leading at sign if it's there.
-      datastore.user.get(username).then(function(response) {
-        var textResponse;
-        response = _.pick(response, _.keys(infoProps));
+    default: // Assume arg is a user, try to fetch their info
+      result = datastore.user.get(command).then(function(theResponse) {
+        let text;
+        // Filter the response to only the info properties
+        const response = _.pick(theResponse, _.keys(INFO_PROPS));
         if (!_.isEmpty(response)) {
-          textResponse = '#### Datasphere record for `' + username + '`:\n';
-          _.each(infoProps, function(value, key) {
+          text = '#### Datasphere record for `' + command + '`:\n';
+          _.each(INFO_PROPS, function(value, key) {
             var userValue = response[key] || '(unset)';
-            textResponse += '* *' + capitalize(key) + '*: ' + userValue + '\n';
+            text += '* *' + capitalize(key) + '*: ' + userValue + '\n';
           });
         }
         else {
-          textResponse = 'No info found for `' + username + '`\n';
+          text = 'No info found for `' + command + '`\n';
         }
 
-        send(textResponse);
+        return text;
       });
+    // end switch
   }
+
+  result.then((text) => {
+    res.json({
+      response_type: 'ephemeral',
+      text: text
+    });
+  });
+
 });
 
-module.exports = handleRequest;
+app.listen(8080, function () {
+  console.log('World commands app listening on port 8080!');
+});
+
+module.exports = app;

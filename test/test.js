@@ -159,7 +159,7 @@ describe('Server', () => {
       'Use `/info set [field] [value]` to set yours!\n' +
       'All fields may be formatted using [Markdown](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)\n';
 
-      it('should show when using the help argument', () => {
+      it('should list available properties', () => {
         return doCommand('info list').then((response) => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',

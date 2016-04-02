@@ -5,12 +5,20 @@
   "main": "server.js",
   "dependencies": {
     "bluebird": "^3.3.4",
+    "chai": "^3.5.0",
     "httpdispatcher": "^1.0.0",
+    "qs": "^6.1.0",
     "redis": "^2.6.0-0",
+    "request-promise": "^2.0.1",
+    "should": "^8.3.0",
     "string-capitalize": "^1.0.1",
     "underscore": "^1.8.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-mocha": "^2.2.0",
+    "mocha": "^2.4.5"
+  },
   "scripts": {
     "start": "node server.js"
   },

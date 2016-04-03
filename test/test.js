@@ -221,6 +221,67 @@ describe('Server', () => {
     });
   });
 
+  const charData = JSON.stringify({
+    desc: 'This is my new description',
+    species: 'infomorph',
+    gender: 'neutral'
+  });
+
+  describe('/archive', () => {
+
+    it('should return a JSON dump of user props', () => {
+      return doCommand('archive')
+      .then(response => {
+        expect(response).to.deep.equal({
+          response_type: 'ephemeral',
+          text: 'Character data archive:\n```\n' + charData + '\n```\n'
+        });
+      });
+    });
+  });
+
+  describe('/unarchive', () => {
+    const newCharData = JSON.stringify({
+      desc: 'This is an updated description',
+      species: 'more differenter infomorph',
+      gender: 'still neutral'
+    });
+
+    it('should refuse to apply an invalid character archive', () => {
+      return doCommand('unarchive ' + newCharData.substr(2))
+      .then(response => {
+        expect(response).to.deep.equal({
+          response_type: 'ephemeral',
+          text: 'That doesn\'t look like a valid character archive!'
+        });
+      })
+      .then(() => {return doCommand('archive');})
+      .then(response => {
+        expect(response).to.deep.equal({
+          response_type: 'ephemeral',
+          text: 'Character data archive:\n```\n' + charData + '\n```\n'
+        });
+      });
+    });
+
+    it('should apply a valid character archive', () => {
+      return doCommand('unarchive ' + newCharData)
+      .then(response => {
+        expect(response).to.deep.equal({
+          response_type: 'ephemeral',
+          text: 'Character archive successfully applied.'
+        });
+      })
+      .then(() => {return doCommand('archive');})
+      .then(response => {
+        expect(response).to.deep.equal({
+          response_type: 'ephemeral',
+          text: 'Character data archive:\n```\n' + newCharData + '\n```\n'
+        });
+      });
+    });
+  });
+
   after(() => {
     server.close();
   });

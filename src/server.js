@@ -117,8 +117,7 @@ handleCommand('info', 'ephemeral', params => {
             const userValue = response[key] || '(unset)';
             text += '* *' + capitalize(key) + '*: ' + userValue + '\n';
           });
-        }
-        else {
+        } else {
           text = 'No info found for `' + command + '`\n';
         }
 
@@ -126,6 +125,27 @@ handleCommand('info', 'ephemeral', params => {
       });
     // end switch
   }
+});
+
+handleCommand('archive', 'ephemeral', params => {
+  return datastore.user.get(params.user_name).then(response => {
+    return 'Character data archive:\n' +
+    '```\n' +
+    JSON.stringify(response) + '\n' +
+    '```\n';
+  });
+});
+
+handleCommand('unarchive', 'ephemeral', params => {
+  let archive;
+  try {
+    archive = JSON.parse(params.text);
+  } catch (err) {
+    return Promise.resolve('That doesn\'t look like a valid character archive!');
+  }
+  return datastore.user.set(params.user_name, archive).then(response => {
+    return 'Character archive successfully applied.';
+  });
 });
 
 app.listen(8080, () => {

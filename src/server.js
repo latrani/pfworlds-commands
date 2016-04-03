@@ -1,40 +1,45 @@
 'use strict';
 
 // General stuff
-var capitalize = require('string-capitalize');
-var _ = require('underscore');
+const capitalize = require('string-capitalize');
+const _ = require('underscore');
 
 // HTTP setup
-var http = require('http');
-var dispatcher = require('httpdispatcher');
+const http = require('http');
+const dispatcher = require('httpdispatcher');
 
-var express = require('express');
-var bodyParser = require('body-parser');
+const express = require('express');
+const bodyParser = require('body-parser');
 
 const INFO_PROPS = {
   species: 'Phenotypic representation',
   gender: 'Whatever you say it is',
 };
 
-var app = express();
+const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 
-var datastore = require('./redis-store.js');
+const datastore = require('./redis-store.js');
 
-app.post('/ooc', (req, res) => {
-  res.json({
-    response_type: 'in_channel',
-    text: '*[OOC]* ' + req.body.text
+const handleCommand = function(command, responseType, handlerPromise) {
+  app.post('/' + command, (req, res) => {
+    datastore.setWorld(req.body.team_domain);
+    handlerPromise(req.body).then((text) => {
+      res.json({
+        response_type: responseType,
+        text: text
+      });
+    });
   });
+};
+
+handleCommand('ooc', 'in_channel', (params) => {
+  return Promise.resolve('*[OOC]* ' + params.text);
 });
 
-app.post('/look', (req, res) => {
-  datastore.setWorld(req.body.team_domain);
-
-  let result;
-
-  if (_.isEmpty(req.body.text)) {
-    result = datastore.channel.get(req.body.channel_id)
+handleCommand('look', 'ephemeral', (params) => {
+  if (_.isEmpty(params.text)) {
+    return datastore.channel.get(params.channel_id)
     .then(function(channelProps){
       if(_.isEmpty(channelProps) || !channelProps.desc) {
         return 'No desc found for this room';
@@ -43,65 +48,43 @@ app.post('/look', (req, res) => {
       }
     });
   } else {
-    result = datastore.user.get(req.body.text)
+    return datastore.user.get(params.text)
     .then(function(userProps){
       if(_.isEmpty(userProps) || !userProps.desc) {
-        return 'No desc found for ' + req.body.text;
+        return 'No desc found for ' + params.text;
       } else {
         return userProps.desc;
       }
     });
   }
-
-  result.then((text) => {
-    res.json({
-      response_type: 'ephemeral',
-      text: text
-    });
-  });
-
 });
 
-app.post('/setdesc', (req, res) => {
-  datastore.setWorld(req.body.team_domain);
-
-  datastore.user.update(req.body.user_name, 'desc', req.body.text).then(function(){
-    res.json({
-      response_type: 'ephemeral',
-      text: 'Description set.'
-    });
+handleCommand('setdesc', 'ephemeral', (params) => {
+  return datastore.user.update(params.user_name, 'desc', params.text).then(function(){
+    return 'Description set.';
   });
 });
 
-app.post('/setroomdesc', (req, res) => {
-  datastore.setWorld(req.body.team_domain);
-
-  datastore.channel.update(req.body.channel_id, 'desc', req.body.text).then(function(){
-    res.json({
-      response_type: 'ephemeral',
-      text: 'Channel description set.'
-    });
+handleCommand('setroomdesc', 'ephemeral', (params) => {
+  return datastore.channel.update(params.channel_id, 'desc', params.text).then(function(){
+    return 'Channel description set.';
   });
 });
 
-app.post('/info', (req, res) => {
-  datastore.setWorld(req.body.team_domain);
+handleCommand('info', 'ephemeral', (params) => {
+  const tokens = params.text.split(' ');
 
-  let result = Promise.resolve();
-  const tokens = req.body.text.split(' ');
-  const currentUser = req.body.user_name;
   const command = _.first(tokens).toLowerCase();
   const args = _.rest(tokens);
 
   switch (command) {
     case '': //Falls through
     case 'help':
-      result = Promise.resolve('#### Datasphere Help\n' +
+      return Promise.resolve('#### Datasphere Help\n' +
       '* `[@username]`: Show info for someone, by @username (Tab-completion works here!)\n' +
       '* `list`: List available fields\n' +
       '* `set [field] [value]`: Set a field on yourself\n' +
       '* `help`: This message\n');
-      break;
     case 'list':
       let text = '#### Avaliable datasphere info fields:\n';
 
@@ -112,29 +95,26 @@ app.post('/info', (req, res) => {
       text += '\nUse `/info set [field] [value]` to set yours!\n';
       text += 'All fields may be formatted using [Markdown](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)\n';
 
-      result = Promise.resolve(text);
-      break;
+      return Promise.resolve(text);
     case 'set':
-      var key = _.first(args).toLowerCase();
-      var value = _.rest(args).join(' ');
+      const key = _.first(args).toLowerCase();
+      const value = _.rest(args).join(' ');
 
-      if (_.has(INFO_PROPS, key)) {
-        result =  datastore.user.update(currentUser, key, value).then(function(response){
+      return _.has(INFO_PROPS, key) ?
+        datastore.user.update(params.user_name, key, value).then(function(response){
           return '`' + key + '` has been set to `' + value + '`';
-        });
-      } else {
-        result = Promise.resolve('`' + key + '` is not a recognized property!');
-      }
-      break;
+        }) :
+        Promise.resolve('`' + key + '` is not a recognized property!');
+      // end case
     default: // Assume arg is a user, try to fetch their info
-      result = datastore.user.get(command).then(function(theResponse) {
+      return datastore.user.get(command).then(function(theResponse) {
         let text;
         // Filter the response to only the info properties
         const response = _.pick(theResponse, _.keys(INFO_PROPS));
         if (!_.isEmpty(response)) {
           text = '#### Datasphere record for `' + command + '`:\n';
           _.each(INFO_PROPS, function(value, key) {
-            var userValue = response[key] || '(unset)';
+            const userValue = response[key] || '(unset)';
             text += '* *' + capitalize(key) + '*: ' + userValue + '\n';
           });
         }
@@ -146,14 +126,6 @@ app.post('/info', (req, res) => {
       });
     // end switch
   }
-
-  result.then((text) => {
-    res.json({
-      response_type: 'ephemeral',
-      text: text
-    });
-  });
-
 });
 
 app.listen(8080, function () {

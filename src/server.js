@@ -112,13 +112,13 @@ handleCommand('info', 'ephemeral', params => {
         // Filter the response to only the info properties
         const response = _.pick(theResponse, _.keys(INFO_PROPS));
         if (!_.isEmpty(response)) {
-          text = '#### Datasphere record for `' + command + '`:\n';
+          text = '#### Datasphere record for ' + command + ':\n';
           _.each(INFO_PROPS, (value, key) => {
             const userValue = response[key] || '(unset)';
             text += '* *' + capitalize(key) + '*: ' + userValue + '\n';
           });
         } else {
-          text = 'No info found for `' + command + '`\n';
+          text = 'No info found for ' + command;
         }
 
         return text;

@@ -175,7 +175,7 @@ describe('Server', () => {
         return doCommand('info ' + userName).then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
-            text: 'No info found for `dummy-user_name`\n'
+            text: 'No info found for dummy-user_name'
           });
         });
       });
@@ -192,7 +192,7 @@ describe('Server', () => {
         .then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
-            text: '#### Datasphere record for `dummy-user_name`:\n' +
+            text: '#### Datasphere record for dummy-user_name:\n' +
                   '* *Species*: infomorph\n' +
                   '* *Gender*: (unset)\n'
           });
@@ -211,7 +211,7 @@ describe('Server', () => {
         .then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
-            text: '#### Datasphere record for `dummy-user_name`:\n' +
+            text: '#### Datasphere record for dummy-user_name:\n' +
                   '* *Species*: infomorph\n' +
                   '* *Gender*: neutral\n'
           });

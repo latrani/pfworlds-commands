@@ -6,57 +6,53 @@ var bluebird = require('bluebird');
 bluebird.promisifyAll(redis.RedisClient.prototype);
 bluebird.promisifyAll(redis.Multi.prototype);
 
-var createRedisMethods = function(client, keyFunc) {
-  var methods = {};
-  methods.get = function(objKey) {
-    return client.getAsync(keyFunc(objKey)).then(function(response){
+class redisAccessors {
+  constructor(client, keyFunc) {
+    this.client = client;
+    this.keyFunc = keyFunc;
+  }
+  get(objKey) {
+    return this.client.getAsync(this.keyFunc(objKey)).then(function(response){
       if (response) {
         return JSON.parse(response);
       } else {
         return {};
       }
     });
-  };
-
-  methods.set = function(objKey, properties) {
+  }
+  set(objKey, properties) {
     var textData = JSON.stringify(properties);
-    return client.setAsync(keyFunc(objKey), textData);
-  };
-
-  methods.update = function(objKey, key, value) {
-    return methods.get(objKey).then(function(objProps) {
+    return this.client.setAsync(this.keyFunc(objKey), textData);
+  }
+  update(objKey, key, value) {
+    return this.get(objKey).then(objProps => {
       objProps[key] = value;
-      return methods.set(objKey, objProps);
+      return this.set(objKey, objProps);
     });
-  };
+  }
+}
 
-  return methods;
-};
+class redisInterface {
+  constructor() {
+    this.client = redis.createClient();
 
-var redisInterface = function() {
-  this.client = redis.createClient();
+    this.user = new redisAccessors(this.client, theUsername => {
+      var username = theUsername.toLowerCase();
+      if (username[0] !== '@') {
+        username = '@' + username;
+      }
+      return this.world + ':' + username;
+    });
 
-  var _this = this;
+    this.channel = new redisAccessors(this.client, channelId => {
+      return this.world + ':' + channelId;
+    });
+  }
 
-  // These are okay because this is a singleton
-  this.user = createRedisMethods(this.client, function(theUsername) {
-    var username = theUsername.toLowerCase();
-    if (username[0] !== '@') {
-      username = '@' + username;
-    }
-    return _this.world + ':' + username;
-  });
-
-  this.channel = createRedisMethods(this.client, function(channelId) {
-    return _this.world + ':' + channelId;
-  });
-};
-
-redisInterface.prototype = {
-  setWorld: function(world) {
+  setWorld(world) {
     this.world = world;
   }
-};
+}
 
 // Return a singleton
 module.exports = new redisInterface();

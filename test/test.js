@@ -7,7 +7,7 @@ const qs = require('qs');
 const http = require('http');
 const expect = require('chai').expect;
 const exec = require('child_process').exec;
-
+const zlib = require('zlib');
 const requestHandler = require('../src/server.js');
 
 const reqTemplate = {
@@ -221,11 +221,11 @@ describe('Server', () => {
     });
   });
 
-  const charData = JSON.stringify({
+  const charData = zlib.deflateSync(JSON.stringify({
     desc: 'This is my new description',
     species: 'infomorph',
     gender: 'neutral'
-  });
+  })).toString('base64');
 
   describe('/archive', () => {
 
@@ -241,11 +241,11 @@ describe('Server', () => {
   });
 
   describe('/unarchive', () => {
-    const newCharData = JSON.stringify({
+    const newCharData = zlib.deflateSync(JSON.stringify({
       desc: 'This is an updated description',
       species: 'more differenter infomorph',
       gender: 'still neutral'
-    });
+    })).toString('base64');
 
     it('should refuse to apply an invalid character archive', () => {
       return doCommand('unarchive ' + newCharData.substr(2))

@@ -3,6 +3,7 @@
 // General stuff
 const capitalize = require('string-capitalize');
 const _ = require('underscore');
+const zlib = require('zlib');
 
 // HTTP setup
 const http = require('http');
@@ -78,7 +79,7 @@ handleCommand('info', 'ephemeral', params => {
   const args = _.rest(tokens);
 
   switch (command) {
-    case '': //Falls through
+    case '':
     case 'help':
       return Promise.resolve('#### Datasphere Help\n' +
       '* `[@username]`: Show info for someone, by @username (Tab-completion works here!)\n' +
@@ -100,12 +101,13 @@ handleCommand('info', 'ephemeral', params => {
       const key = _.first(args).toLowerCase();
       const value = _.rest(args).join(' ');
 
-      return _.has(INFO_PROPS, key) ?
-        datastore.user.update(params.user_name, key, value).then(response => {
+      if (_.has(INFO_PROPS, key)) {
+        return datastore.user.update(params.user_name, key, value).then(response => {
           return '`' + key + '` has been set to `' + value + '`';
-        }) :
-        Promise.resolve('`' + key + '` is not a recognized property!');
-      // end case
+        });
+      }
+
+      return Promise.resolve('`' + key + '` is not a recognized property!');
     default: // Assume arg is a user, try to fetch their info
       return datastore.user.get(command).then(theResponse => {
         let text;
@@ -131,7 +133,7 @@ handleCommand('archive', 'ephemeral', params => {
   return datastore.user.get(params.user_name).then(response => {
     return 'Character data archive:\n' +
     '```\n' +
-    JSON.stringify(response) + '\n' +
+    zlib.deflateSync(JSON.stringify(response)).toString('base64') + '\n' +
     '```\n';
   });
 });
@@ -139,7 +141,7 @@ handleCommand('archive', 'ephemeral', params => {
 handleCommand('unarchive', 'ephemeral', params => {
   let archive;
   try {
-    archive = JSON.parse(params.text);
+    archive = JSON.parse(zlib.unzipSync(new Buffer(params.text, 'base64')));
   } catch (err) {
     return Promise.resolve('That doesn\'t look like a valid character archive!');
   }

@@ -36,7 +36,7 @@ var doCommand = function(theCommand) {
   return rp.post({
     url: baseURL + command,
     form: requestBody
-  }).then((response) => {
+  }).then(response => {
     const jsonResponse = JSON.parse(response);
     return jsonResponse;
   });
@@ -47,7 +47,7 @@ describe('Server', () => {
   before(() => {
     exec('redis-cli flushdb');
     server = http.createServer(requestHandler);
-    server.listen(0, '127.0.0.1', function() {
+    server.listen(0, '127.0.0.1', () => {
       const address = server.address();
       baseURL = `http://${address.address}:${address.port}/`;
       console.log(baseURL);
@@ -55,7 +55,7 @@ describe('Server', () => {
   });
 
   it('should have an OOC command', () => {
-    return doCommand('ooc Test test test').then((response) => {
+    return doCommand('ooc Test test test').then(response => {
       expect(response).to.deep.equal({
         response_type: 'in_channel',
         text: '*[OOC]* Test test test'
@@ -66,7 +66,7 @@ describe('Server', () => {
   describe('User descriptions', () => {
     const userName = reqTemplate.user_name;
     it('should initially show an unset user desc message', () => {
-      return doCommand('look ' + userName).then((response) => {
+      return doCommand('look ' + userName).then(response => {
         expect(response).to.deep.equal({
           response_type: 'ephemeral',
           text: 'No desc found for ' + userName
@@ -77,14 +77,14 @@ describe('Server', () => {
     it('should successfully set a description', () => {
       const descriptionText = 'This is my new description';
       return doCommand('setdesc ' + descriptionText)
-      .then((response) => {
+      .then(response => {
         expect(response).to.deep.equal({
           response_type: 'ephemeral',
           text: 'Description set.'
         });
       })
       .then(() => { return doCommand('look ' + userName); })
-      .then((response) => {
+      .then(response => {
         expect(response).to.deep.equal({
           response_type: 'ephemeral',
           text: descriptionText
@@ -96,7 +96,7 @@ describe('Server', () => {
   describe('Channel descriptions', () => {
     const channelId = reqTemplate.channel_id;
     it('should initially show an unset channel desc message', () => {
-      return doCommand('look').then((response) => {
+      return doCommand('look').then(response => {
         expect(response).to.deep.equal({
           response_type: 'ephemeral',
           text: 'No desc found for this room'
@@ -107,14 +107,14 @@ describe('Server', () => {
     it('should successfully set a description', () => {
       const descriptionText = 'This is the new room description';
       return doCommand('setroomdesc ' + descriptionText)
-      .then((response) => {
+      .then(response => {
         expect(response).to.deep.equal({
           response_type: 'ephemeral',
           text: 'Channel description set.'
         });
       })
       .then(() => { return doCommand('look'); })
-      .then((response) => {
+      .then(response => {
         expect(response).to.deep.equal({
           response_type: 'ephemeral',
           text: descriptionText
@@ -133,7 +133,7 @@ describe('Server', () => {
       '* `help`: This message\n';
 
       it('should show when using the help argument', () => {
-        return doCommand('info help').then((response) => {
+        return doCommand('info help').then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: helpText
@@ -142,7 +142,7 @@ describe('Server', () => {
       });
 
       it('should show when /info is called by itself', () => {
-        return doCommand('info').then((response) => {
+        return doCommand('info').then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: helpText
@@ -160,7 +160,7 @@ describe('Server', () => {
       'All fields may be formatted using [Markdown](https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet)\n';
 
       it('should list available properties', () => {
-        return doCommand('info list').then((response) => {
+        return doCommand('info list').then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: listText
@@ -172,7 +172,7 @@ describe('Server', () => {
     describe('setting properties', () => {
       const userName = reqTemplate.user_name;
       it('should initially show no properties', () => {
-        return doCommand('info ' + userName).then((response) => {
+        return doCommand('info ' + userName).then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: 'No info found for `dummy-user_name`\n'
@@ -182,14 +182,14 @@ describe('Server', () => {
 
       it('should successfully set a property', () => {
         return doCommand('info set species infomorph')
-        .then((response) => {
+        .then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: '`species` has been set to `infomorph`'
           });
         })
         .then(() => { return doCommand('info ' + userName); })
-        .then((response) => {
+        .then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: '#### Datasphere record for `dummy-user_name`:\n' +
@@ -201,14 +201,14 @@ describe('Server', () => {
 
       it('should set a second property while maintaining the first', () => {
         return doCommand('info set gender neutral')
-        .then((response) => {
+        .then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: '`gender` has been set to `neutral`'
           });
         })
         .then(() => { return doCommand('info ' + userName); })
-        .then((response) => {
+        .then(response => {
           expect(response).to.deep.equal({
             response_type: 'ephemeral',
             text: '#### Datasphere record for `dummy-user_name`:\n' +
